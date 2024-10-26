@@ -37,6 +37,15 @@ def do_train(args, model, train_dataloader, save_dir="./out"):
     model.train()
     progress_bar = tqdm(range(num_training_steps))
 
+    for epoch in range(num_epochs):
+        for x, y in train_dataloader:
+            print(x)
+            print(y)
+            sys.exit()
+
+
+
+
     ################################
     ##### YOUR CODE BEGINGS HERE ###
 
