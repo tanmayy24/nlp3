@@ -34,12 +34,19 @@ qwerty_neighbors = {
     'y': ['t', 'g', 'h', 'u'], 'z': ['a', 's', 'x']
 }
 
-# Function to introduce typos
+# Function to introduce typos, including swapping adjacent characters
 def introduce_typo(word):
     if len(word) > 1 and random.random() < 0.2:  # 20% chance to introduce a typo
-        idx = random.randint(0, len(word) - 1)
-        if word[idx] in qwerty_neighbors:
-            word = word[:idx] + random.choice(qwerty_neighbors[word[idx]]) + word[idx + 1:]
+        # Randomly choose between adjacent character swap or QWERTY neighbor typo
+        if random.random() < 0.5:
+            # Swap two adjacent characters
+            idx = random.randint(0, len(word) - 2)
+            word = word[:idx] + word[idx + 1] + word[idx] + word[idx + 2:]
+        else:
+            # QWERTY neighbor typo
+            idx = random.randint(0, len(word) - 1)
+            if word[idx] in qwerty_neighbors:
+                word = word[:idx] + random.choice(qwerty_neighbors[word[idx]]) + word[idx + 1:]
     return word
 
 # Function to apply typo introduction transformation
@@ -48,6 +55,7 @@ def typo_introduction(example):
     new_words = [introduce_typo(word) for word in words]
     example["text"] = TreebankWordDetokenizer().detokenize(new_words)
     return example
+
 
 # Function to replace words with synonyms
 def synonym_replacement(example):
