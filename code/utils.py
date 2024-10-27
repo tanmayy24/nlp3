@@ -16,8 +16,6 @@ from nltk.tokenize.treebank import TreebankWordDetokenizer
 
 random.seed(0)
 
-
-
 def example_transform(example):
     example["text"] = example["text"].lower()
     return example
@@ -59,15 +57,10 @@ def synonym_replacement(example):
         if random.random() < 0.3:  # 30% chance to replace a word
             synsets = wordnet.synsets(word)
             if synsets:
-                synonyms = synsets[0].lemmas()
-                if synonyms:
-                    new_word = synonyms[0].name()
-                    if new_word != word:
-                        new_words.append(new_word)
-                    else:
-                        new_words.append(word)
-                else:
-                    new_words.append(word)
+                # Choose the most common synonym (lemma with the highest usage count)
+                lemmas = synsets[0].lemmas()
+                best_synonym = max(lemmas, key=lambda lemma: lemma.count()).name()
+                new_words.append(best_synonym if best_synonym != word else word)
             else:
                 new_words.append(word)
         else:
@@ -82,7 +75,7 @@ def custom_transform(example):
 
     # Define probability thresholds
     synonym_prob = 0.3  # 30% chance to replace a word with a synonym
-    typo_prob = 0.2     # 20% chance to introduce a typo
+    typo_prob = 0.4    # 40% chance to introduce a typo
 
     words = word_tokenize(example["text"])
     new_words = []
