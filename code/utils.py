@@ -16,100 +16,80 @@ from nltk.tokenize.treebank import TreebankWordDetokenizer
 
 random.seed(0)
 
+
 def example_transform(example):
     example["text"] = example["text"].lower()
     return example
 
-# QWERTY neighbors map for typo introduction
-qwerty_neighbors = {
-    'a': ['q', 'w', 's', 'z'], 'b': ['v', 'g', 'h', 'n'], 'c': ['x', 'd', 'f', 'v'],
-    'd': ['s', 'e', 'r', 'f', 'c'], 'e': ['w', 's', 'd', 'r'], 'f': ['d', 'r', 't', 'g'],
-    'g': ['f', 't', 'y', 'h'], 'h': ['g', 'y', 'u', 'j'], 'i': ['u', 'j', 'k', 'o'],
-    'j': ['h', 'u', 'i', 'k'], 'k': ['j', 'i', 'o', 'l'], 'l': ['k', 'o', 'p'],
-    'm': ['n', 'j', 'k'], 'n': ['b', 'h', 'j', 'm'], 'o': ['i', 'k', 'l', 'p'],
-    'p': ['o', 'l'], 'q': ['w', 'a'], 'r': ['e', 'd', 'f', 't'],
-    's': ['a', 'w', 'e', 'd', 'x'], 't': ['r', 'f', 'g', 'y'],
-    'u': ['y', 'h', 'j', 'i'], 'v': ['c', 'd', 'f', 'b'],
-    'w': ['q', 'a', 's', 'e'], 'x': ['z', 's', 'd', 'c'],
-    'y': ['t', 'g', 'h', 'u'], 'z': ['a', 's', 'x']
-}
 
-# Function to introduce typos, including swapping adjacent characters
+### Rough guidelines --- typos
+# For typos, you can try to simulate nearest keys on the QWERTY keyboard for some of the letter (e.g. vowels)
+# You can randomly select each word with some fixed probability, and replace random letters in that word with one of the
+# nearest keys on the keyboard. You can vary the random probablity or which letters to use to achieve the desired accuracy.
+
+
+### Rough guidelines --- synonym replacement
+# For synonyms, use can rely on wordnet (already imported here). Wordnet (https://www.nltk.org/howto/wordnet.html) includes
+# something called synsets (which stands for synonymous words) and for each of them, lemmas() should give you a possible synonym word.
+# You can randomly select each word with some fixed probability to replace by a synonym.
+
+
+def get_nearest_keys():
+    # A mapping of letters to their nearby keys on a QWERTY keyboard
+    return {
+        'a': ['q', 'w', 's', 'z'],
+        'e': ['w', 'r', 's', 'd'],
+        'i': ['u', 'o', 'j', 'k'],
+        'o': ['i', 'p', 'k', 'l'],
+        'u': ['y', 'i', 'h', 'j'],
+    }
+
 def introduce_typo(word):
-    if random.random() < 0.5:
-        # Swap two adjacent characters
-        idx = random.randint(0, len(word) - 2)
-        word = word[:idx] + word[idx + 1] + word[idx] + word[idx + 2:]
-    else:
-        # QWERTY neighbor typo
-        idx = random.randint(0, len(word) - 1)
-        if word[idx] in qwerty_neighbors:
-            word = word[:idx] + random.choice(qwerty_neighbors[word[idx]]) + word[idx + 1:]
+    # Randomly introduce typos in the word by replacing a vowel with one of its nearby keys
+    nearest_keys = get_nearest_keys()
+    typo_word = list(word)
+    for idx, char in enumerate(typo_word):
+        if char in nearest_keys and random.random() < 0.2:  # 20% chance to replace the letter
+            typo_word[idx] = random.choice(nearest_keys[char])
+    return ''.join(typo_word)
+
+def replace_with_synonym(word):
+    # Replace word with a synonym if possible
+    synonyms = set()
+    for syn in wordnet.synsets(word):
+        for lemma in syn.lemmas():
+            synonyms.add(lemma.name().replace('_', ' '))
+    # Filter to avoid returning the original word
+    if synonyms:
+        synonyms.discard(word)
+        if synonyms:
+            return random.choice(list(synonyms))
     return word
 
-# Function to apply typo introduction transformation
-def typo_introduction(example):
-    words = word_tokenize(example["text"])
-    new_words = [introduce_typo(word) for word in words]
-    example["text"] = TreebankWordDetokenizer().detokenize(new_words)
-    return example
-
-
-# Function to replace words with synonyms
-def synonym_replacement(example):
-    words = word_tokenize(example["text"])
-    new_words = []
-    for word in words:
-        if random.random() < 0.3:  # 30% chance to replace a word
-            synsets = wordnet.synsets(word)
-            if synsets:
-                # Choose the most common synonym (lemma with the highest usage count)
-                lemmas = synsets[0].lemmas()
-                best_synonym = max(lemmas, key=lambda lemma: lemma.count()).name()
-                new_words.append(best_synonym if best_synonym != word else word)
-            else:
-                new_words.append(word)
-        else:
-            new_words.append(word)
-    example["text"] = TreebankWordDetokenizer().detokenize(new_words)
-    return example
-
+def swap_adjacent_characters(word):
+    # Randomly swap adjacent characters in a word
+    if len(word) < 2:
+        return word
+    word_list = list(word)
+    idx = random.randint(0, len(word) - 2)  # Choose a position to swap
+    word_list[idx], word_list[idx + 1] = word_list[idx + 1], word_list[idx]
+    return ''.join(word_list)
 
 def custom_transform(example):
-    ################################
-    ##### YOUR CODE BEGINS HERE ###
-
-    # Define probability thresholds
-    synonym_prob = 0.3  # 30% chance to replace a word with a synonym
-    typo_prob = 0.2    # 40% chance to introduce a typo
-
+    # Tokenize the input text
     words = word_tokenize(example["text"])
-    new_words = []
-    
+    transformed_words = []
+
     for word in words:
-        # Randomly decide if we want to replace the word with a synonym
-        if random.random() < synonym_prob:
-            synsets = wordnet.synsets(word)
-            if synsets:
-                synonyms = synsets[0].lemmas()
-                if synonyms:
-                    new_word = synonyms[0].name()
-                    if new_word != word:
-                        new_words.append(new_word)
-                        continue  # Skip to the next word after replacement
-
-        # If not replaced by a synonym, consider introducing a typo
-        if random.random() < typo_prob and len(word) > 1:
-            idx = random.randint(0, len(word) - 1)
-            if word[idx] in qwerty_neighbors:
-                word = word[:idx] + random.choice(qwerty_neighbors[word[idx]]) + word[idx + 1:]
-        
-        # Add the (possibly modified) word to the result
-        new_words.append(word)
-
-    # Reconstruct the transformed text
-    example["text"] = TreebankWordDetokenizer().detokenize(new_words)
-
-    ##### YOUR CODE ENDS HERE ######
-
+        # Randomly decide to introduce a typo, replace with a synonym, or swap characters
+        if random.random() < 0.2:  # 10% chance to introduce a typo
+            word = introduce_typo(word)
+        if random.random() < 0.2:  # 10% chance to replace with a synonym
+            word = replace_with_synonym(word)
+        if random.random() < 0.2:  # 10% chance to swap adjacent characters
+            word = swap_adjacent_characters(word)
+        transformed_words.append(word)
+    
+    # Detokenize back to string
+    example["text"] = TreebankWordDetokenizer().detokenize(transformed_words)
     return example
