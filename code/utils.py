@@ -52,37 +52,63 @@ contractions = {
 # Reverse mapping for decontractions
 decontractions = {v: k for k, v in contractions.items()}
 
+# Synonym replacement using WordNet
+def synonym_replace(text, replace_prob=0.3):
+    words = word_tokenize(text)
+    new_words = []
+    
+    for word in words:
+        if random.random() < replace_prob:
+            synonyms = wordnet.synsets(word)
+            if synonyms:
+                syn_word = synonyms[0].lemmas()[0].name()
+                new_words.append(syn_word if syn_word != word else word)
+            else:
+                new_words.append(word)
+        else:
+            new_words.append(word)
+    
+    return TreebankWordDetokenizer().detokenize(new_words)
+
+# Typo introduction by simulating keyboard mistakes
+keyboard_typos = {
+    'a': ['q', 'w', 's', 'z'], 'e': ['w', 'r', 'd'], 'i': ['u', 'o', 'k'], 'o': ['i', 'p', 'l'],
+    's': ['a', 'd', 'w', 'x'], 't': ['r', 'y', 'g'], 'n': ['b', 'm', 'j'], 'm': ['n', 'j', 'k']
+}
+
+def introduce_typos(text, typo_prob=0.2):
+    chars = list(text)
+    for i, char in enumerate(chars):
+        if char.lower() in keyboard_typos and random.random() < typo_prob:
+            chars[i] = random.choice(keyboard_typos[char.lower()])
+    return "".join(chars)
+
+# Transformations
 def contractions_transform(text):
-    # Replace phrases with their contracted forms
     for phrase, contraction in contractions.items():
         text = re.sub(r'\b' + re.escape(phrase) + r'\b', contraction, text, flags=re.IGNORECASE)
     return text
 
 def decontractions_transform(text):
-    # Replace contractions with their expanded forms
     for contraction, phrase in decontractions.items():
         text = re.sub(r'\b' + re.escape(contraction) + r'\b', phrase, text, flags=re.IGNORECASE)
     return text
 
-def custom_transform(example, contraction_prob=0.5):
-    ################################
-    ##### YOUR CODE BEGINS HERE ###
-
-    # Randomly decide whether to apply contraction or decontraction based on the given probability
-    if random.random() < contraction_prob:
+# Custom transform function that applies random transformation
+def custom_transform(example, transform_probs={"contraction": 0.25, "decontraction": 0.25, "typo": 0.25, "synonym": 0.25}):
+    transform_type = random.choices(
+        list(transform_probs.keys()), 
+        list(transform_probs.values())
+    )[0]
+    
+    if transform_type == "contraction":
         example["text"] = contractions_transform(example["text"])
-    else:
+    elif transform_type == "decontraction":
         example["text"] = decontractions_transform(example["text"])
-
-    ##### YOUR CODE ENDS HERE ######
-
+    elif transform_type == "typo":
+        example["text"] = introduce_typos(example["text"])
+    elif transform_type == "synonym":
+        example["text"] = synonym_replace(example["text"])
+    
     return example
 
-
-# Example usage
-example_text = {"text": "I am not sure if you are going to like it."}
-random.seed(42)  # For reproducibility
-print(custom_transform(example_text))
-
-example_text_2 = {"text": "I'm not sure if you're going to like it."}
-print(custom_transform(example_text_2))
