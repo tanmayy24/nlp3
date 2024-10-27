@@ -75,7 +75,7 @@ def custom_transform(example):
 
     # Define probability thresholds
     synonym_prob = 0.3  # 30% chance to replace a word with a synonym
-    typo_prob = 0.4    # 40% chance to introduce a typo
+    typo_prob = 0.2    # 40% chance to introduce a typo
 
     words = word_tokenize(example["text"])
     new_words = []
